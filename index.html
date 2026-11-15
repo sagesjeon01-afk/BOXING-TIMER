@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="복싱 타이머" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>복싱 인터벌 타이머</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --work: #ef4444;
+      --warn: #f59e0b;
+      --rest: #10b981;
+      --prep: #3b82f6;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+    .app {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.2rem;
+      margin: 0;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .badge {
+      font-size: 0.75rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: var(--muted);
+    }
+    .timer-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 24px;
+      padding: 24px 20px;
+      text-align: center;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .timer-card.work { border-color: var(--work); background: rgba(239, 68, 68, 0.12); }
+    .timer-card.warn { border-color: var(--warn); background: rgba(245, 158, 11, 0.15); }
+    .timer-card.rest { border-color: var(--rest); background: rgba(16, 185, 129, 0.12); }
+    .timer-card.prep { border-color: var(--prep); background: rgba(59, 130, 246, 0.12); }
+
+    .phase-label {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .round-info {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .time-display {
+      font-size: 5rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin: 8px 0 18px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 100%;
+      background: var(--text);
+      transition: width 0.1s linear;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+    }
+    button {
+      border: none;
+      border-radius: 16px;
+      padding: 16px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    button:active { transform: scale(0.97); }
+    .btn-primary { background: #ef4444; }
+    .btn-primary.running { background: #f59e0b; color: #0f172a; }
+    .btn-secondary { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .setting-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .setting-item label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stepper button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      font-size: 1.1rem;
+    }
+    .stepper span {
+      font-weight: 700;
+      font-size: 0.95rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sound-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sound-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+    }
+    .sound-row span b { display: block; color: var(--text); margin-bottom: 2px; }
+    .sound-row span small { color: var(--muted); }
+    .btn-test {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🥊 복싱 인터벌 타이머</h1>
+      <span class="badge" id="wakeStatus">화면유지 대기</span>
+    </header>
+
+    <div class="timer-card" id="timerCard">
+      <div class="phase-label" id="phaseLabel">준비 완료</div>
+      <div class="round-info" id="roundInfo">라운드 1 / 12</div>
+      <div class="time-display" id="timeDisplay">03:00</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-primary" id="startBtn">시작</button>
+      <button class="btn-secondary" id="resetBtn">초기화</button>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">타이머 설정</h2>
+      <div class="settings-grid">
+        <div class="setting-item">
+          <label>라운드 수</label>
+          <div class="stepper">
+            <button data-key="rounds" data-delta="-1">-</button>
+            <span id="val-rounds">12</span>
+            <button data-key="rounds" data-delta="1">+</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <label>준비 시간</label>
+          <div class="stepper">
+            <button data-key="prepSec" data-delta="-5">-</button>
+            <span id="val-prepSec">10초</span>
+            <button data-key="prepSec" data-delta="5">+</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <label>운동 시간</label>
+          <div class="stepper">
+            <button data-key="workSec" data-delta="-15">-</button>
+            <span id="val-workSec">03:00</span>
+            <button data-key="workSec" data-delta="15">+</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <label>휴식 시간</label>
+          <div class="stepper">
+            <button data-key="restSec" data-delta="-10">-</button>
+            <span id="val-restSec">01:00</span>
+            <button data-key="restSec" data-delta="10">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">🔔 비프음 구성 & 미리듣기</h2>
+      <div class="sound-list">
+        <div class="sound-row">
+          <span><b>운동 시작 / 휴식 시작</b><small>긴 비프음 1회</small></span>
+          <button class="btn-test" onclick="soundEngine.longOnce()">듣기</button>
+        </div>
+        <div class="sound-row">
+          <span><b>운동 종료 30초 전</b><small>삐- 삐- (2회)</small></span>
+          <button class="btn-test" onclick="soundEngine.warn30s()">듣기</button>
+        </div>
+        <div class="sound-row">
+          <span><b>휴식 종료 10초 전</b><small>삐삐삐 (3회)</small></span>
+          <button class="btn-test" onclick="soundEngine.rest10s()">듣기</button>
+        </div>
+        <div class="sound-row">
+          <span><b>마지막 라운드 종료</b><small>긴 비프음 3회</small></span>
+          <button class="btn-test" onclick="soundEngine.finishTriple()">듣기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Service Worker 등록
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    // Web Audio API 비프음 엔진
+    class BoxingSoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      ensureCtx() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playTone(freq, durationMs, delayMs = 0, type = 'sine') {
+        this.ensureCtx();
+        const now = this.ctx.currentTime + delayMs / 1000;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.8, now + 0.015);
+        gain.gain.setValueAtTime(0.8, now + durationMs / 1000 - 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + durationMs / 1000);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + durationMs / 1000 + 0.02);
+      }
+      // 운동 시작 / 휴식 시작: 긴 비프음 1회
+      longOnce() {
+        this.playTone(880, 850, 0, 'triangle');
+      }
+      // 운동 종료 30초 전: 삐- 삐- (2회)
+      warn30s() {
+        this.playTone(1050, 260, 0, 'sine');
+        this.playTone(1050, 260, 420, 'sine');
+      }
+      // 휴식 종료 10초 전: 삐삐삐 (3회)
+      rest10s() {
+        this.playTone(1200, 110, 0, 'sine');
+        this.playTone(1200, 110, 180, 'sine');
+        this.playTone(1200, 110, 360, 'sine');
+      }
+      // 마지막 라운드 종료: 긴 비프음 3회
+      finishTriple() {
+        this.playTone(880, 650, 0, 'triangle');
+        this.playTone(880, 650, 820, 'triangle');
+        this.playTone(880, 850, 1640, 'triangle');
+      }
+    }
+
+    const soundEngine = new BoxingSoundEngine();
+
+    // 타이머 상태
+    const state = {
+      rounds: 12,
+      prepSec: 10,
+      workSec: 180,
+      restSec: 60,
+      currentRound: 1,
+      phase: 'IDLE', // IDLE, PREP, WORK, REST, DONE
+      remainingMs: 180000,
+      phaseTotalMs: 180000,
+      endTime: 0,
+      running: false,
+      timerId: null,
+      cue30Fired: false,
+      cue10Fired: false,
+      wakeLock: null
+    };
+
+    const el = {
+      card: document.getElementById('timerCard'),
+      phase: document.getElementById('phaseLabel'),
+      round: document.getElementById('roundInfo'),
+      time: document.getElementById('timeDisplay'),
+      progress: document.getElementById('progressFill'),
+      startBtn: document.getElementById('startBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      wakeStatus: document.getElementById('wakeStatus')
+    };
+
+    function formatTime(sec) {
+      const s = Math.max(0, Math.ceil(sec));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+    }
+
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator && !state.wakeLock) {
+          state.wakeLock = await navigator.wakeLock.request('screen');
+          el.wakeStatus.textContent = '화면꺼짐 방지 ON';
+          state.wakeLock.addEventListener('release', () => {
+            state.wakeLock = null;
+            el.wakeStatus.textContent = '화면유지 대기';
+          });
+        }
+      } catch (e) {}
+    }
+
+    function releaseWakeLock() {
+      if (state.wakeLock) {
+        state.wakeLock.release();
+        state.wakeLock = null;
+      }
+    }
+
+    function renderSettings() {
+      document.getElementById('val-rounds').textContent = state.rounds;
+      document.getElementById('val-prepSec').textContent = `${state.prepSec}초`;
+      document.getElementById('val-workSec').textContent = formatTime(state.workSec);
+      document.getElementById('val-restSec').textContent = formatTime(state.restSec);
+    }
+
+    function renderTimer() {
+      const secLeft = state.remainingMs / 1000;
+      el.time.textContent = formatTime(secLeft);
+      el.round.textContent = `라운드 ${state.currentRound} / ${state.rounds}`;
+
+      const pct = state.phaseTotalMs > 0 ? Math.max(0, Math.min(100, (state.remainingMs / state.phaseTotalMs) * 100)) : 100;
+      el.progress.style.width = `${pct}%`;
+
+      el.card.className = 'timer-card';
+      if (state.phase === 'PREP') {
+        el.phase.textContent = '준비';
+        el.card.classList.add('prep');
+      } else if (state.phase === 'WORK') {
+        if (secLeft <= 30 && state.workSec > 30) {
+          el.phase.textContent = '운동 (마무리 30초!)';
+          el.card.classList.add('warn');
+        } else {
+          el.phase.textContent = '운동 중 (WORK)';
+          el.card.classList.add('work');
+        }
+      } else if (state.phase === 'REST') {
+        el.phase.textContent = '휴식 (REST)';
+        el.card.classList.add('rest');
+      } else if (state.phase === 'DONE') {
+        el.phase.textContent = '전체 운동 완료!';
+      } else {
+        el.phase.textContent = '준비 완료';
+      }
+
+      el.startBtn.textContent = state.running ? '일시정지' : (state.phase === 'IDLE' || state.phase === 'DONE' ? '시작' : '계속');
+      el.startBtn.classList.toggle('running', state.running);
+    }
+
+    function startPhase(phaseName, durationSec) {
+      state.phase = phaseName;
+      state.phaseTotalMs = durationSec * 1000;
+      state.remainingMs = state.phaseTotalMs;
+      state.endTime = Date.now() + state.phaseTotalMs;
+      state.cue30Fired = false;
+      state.cue10Fired = false;
+    }
+
+    function tick() {
+      if (!state.running) return;
+      const now = Date.now();
+      state.remainingMs = state.endTime - now;
+      const secLeft = Math.ceil(state.remainingMs / 1000);
+
+      // 운동 종료 30초 전 비프음 (삐- 삐- 2회)
+      if (state.phase === 'WORK' && !state.cue30Fired && state.workSec > 30 && secLeft <= 30 && secLeft > 0) {
+        state.cue30Fired = true;
+        soundEngine.warn30s();
+      }
+
+      // 휴식 종료 10초 전 비프음 (삐삐삐 3회)
+      if (state.phase === 'REST' && !state.cue10Fired && state.restSec > 10 && secLeft <= 10 && secLeft > 0) {
+        state.cue10Fired = true;
+        soundEngine.rest10s();
+      }
+
+      if (state.remainingMs <= 0) {
+        advancePhase();
+      }
+      renderTimer();
+    }
+
+    function advancePhase() {
+      if (state.phase === 'PREP') {
+        soundEngine.longOnce(); // 운동 시작: 긴 비프음 1회
+        startPhase('WORK', state.workSec);
+      } else if (state.phase === 'WORK') {
+        if (state.currentRound >= state.rounds) {
+          // 마지막 라운드 종료: 긴 비프음 3회
+          soundEngine.finishTriple();
+          state.phase = 'DONE';
+          state.remainingMs = 0;
+          state.running = false;
+          clearInterval(state.timerId);
+          releaseWakeLock();
+        } else {
+          soundEngine.longOnce(); // 휴식 시작: 긴 비프음 1회
+          startPhase('REST', state.restSec);
+        }
+      } else if (state.phase === 'REST') {
+        state.currentRound += 1;
+        soundEngine.longOnce(); // 다음 라운드 운동 시작: 긴 비프음 1회
+        startPhase('WORK', state.workSec);
+      }
+    }
+
+    el.startBtn.addEventListener('click', () => {
+      soundEngine.ensureCtx();
+      if (state.running) {
+        state.running = false;
+        clearInterval(state.timerId);
+        releaseWakeLock();
+      } else {
+        if (state.phase === 'IDLE' || state.phase === 'DONE') {
+          state.currentRound = 1;
+          if (state.prepSec > 0) {
+            startPhase('PREP', state.prepSec);
+          } else {
+            soundEngine.longOnce();
+            startPhase('WORK', state.workSec);
+          }
+        } else {
+          state.endTime = Date.now() + state.remainingMs;
+        }
+        state.running = true;
+        requestWakeLock();
+        state.timerId = setInterval(tick, 100);
+      }
+      renderTimer();
+    });
+
+    el.resetBtn.addEventListener('click', () => {
+      state.running = false;
+      clearInterval(state.timerId);
+      releaseWakeLock();
+      state.phase = 'IDLE';
+      state.currentRound = 1;
+      state.remainingMs = state.workSec * 1000;
+      state.phaseTotalMs = state.workSec * 1000;
+      renderTimer();
+    });
+
+    document.querySelectorAll('.stepper button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.running) return;
+        const key = btn.dataset.key;
+        const delta = Number(btn.dataset.delta);
+        if (key === 'rounds') state.rounds = Math.max(1, Math.min(30, state.rounds + delta));
+        if (key === 'prepSec') state.prepSec = Math.max(0, Math.min(60, state.prepSec + delta));
+        if (key === 'workSec') state.workSec = Math.max(15, Math.min(600, state.workSec + delta));
+        if (key === 'restSec') state.restSec = Math.max(10, Math.min(300, state.restSec + delta));
+
+        if (state.phase === 'IDLE') {
+          state.remainingMs = state.workSec * 1000;
+          state.phaseTotalMs = state.workSec * 1000;
+        }
+        renderSettings();
+        renderTimer();
+      });
+    });
+
+    renderSettings();
+    renderTimer();
+  </script>
+</body>
+</html>
